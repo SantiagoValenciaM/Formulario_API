@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON API</title>
+</head>
+
+<body>
+    <form id="nuevoPostForm">
+        <h2>Agrega un nuevo post</h2>
+        <label for="postTitulo">Titulo:</label>
+        <input type="text" id="postTitulo" name="titulo" required>
+        <br>
+        <label for="postBody">Contenido:</label>
+        <textarea id="postBody" name="cuerpo" required></textarea>
+        <br>
+        <button type="submit">Agregar Post</button>
+    </form>
+    <hr>
+
+    <label for="user_select">Selecciona un usuario</label>
+    <select name="user_select" id="user_select"></select>
+    <div id="post_div">
+        <!-- Aqui se muestra el post del usuario -->
+    </div>
+    <hr>
+    <div id="comments_div">
+        <!-- Aqui se muestran los comentarios de los posts -->
+    </div>
+</body>
+<script>
+    const form = document.getElementById("nuevoPostForm");
+    const menu = document.getElementById('user_select');
+    const postDiv = document.getElementById('post_div');
+    const commentsDiv = document.getElementById('comments_div');
+
+    fetch('https://jsonplaceholder.typicode.com/users')
+      .then(response => response.json())
+      .then(usuarios => {
+        const menu = document.getElementById('user_select');
+        menu.innerHTML = '';
+        usuarios.forEach(usuario => {
+            menu.innerHTML += `<option value="${usuario.id}">${usuario.username}</option>`;
+        });
+      })
+      .catch(error => console.error('Error al obtener usuarios:', error));
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const userId = menu.value;
+        if (!userId) {
+            alert('Debes seleccionar un usuario');
+            return;
+        }
+        const title = document.getElementById('postTitulo').value;
+        const body = document.getElementById('postBody').value;
+
+        const nuevoPost = {userId, title, body};
+
+        fetch('https://jsonplaceholder.typicode.com/posts',{
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(nuevoPost)
+        })
+          .then(response => response.json())
+          .then(postCreado => {
+            postDiv.innerHTML = `
+            <div id="postContenedor">
+            <h3>${postCreado.title}</h3>
+            <p>${postCreado.body}</p>
+            <button onclick="cargarComentarios(this, ${postCreado.id})">Ver comentarios</button>
+            <button onclick="ocultarComentarios(this)" style="display: none;">Ocultar comentarios</button>
+            <button onclick="eliminarPost(this, ${postCreado.id})">Eliminar Post</button>
+            </div>
+            ` + postDiv.innerHTML
+            nuevoPostForm.reset();
+          })  
+
+      });
+
+      menu.addEventListener('change', function () {
+          const userId = menu.value;
+          
+          if (userId) { // Evita ejecutar si no se ha seleccionado usuario
+            fetch(`https://jsonplaceholder.typicode.com/posts?userId=${userId}`)
+                .then(response => response.json())
+                .then(posts => {
+                    console.log("change")
+                    postDiv.innerHTML = ''; // Limpiar contenido previo
+                    posts.forEach(post => {
+                        postDiv.innerHTML += `
+                        <div id="postContenedor">
+                        <h3>${post.title}</h3>
+                        <p>${post.body}</p>
+                        <button onclick="cargarComentarios(this, ${post.id})">Ver comentarios</button>
+                        <button onclick="ocultarComentarios(this)" style="display: none;">Ocultar comentarios</button>
+                        <button onclick="eliminarPost(this)">Eliminar Post</button>
+                        <div class="comentarios" id="comentarios"></div>
+                        <hr>
+                        </div>`;
+                    });
+                })
+                .catch(error => console.error('Error al obtener posts:', error));
+        } else {
+            postDiv.innerHTML = ''; // Si no hay usuario seleccionado, limpiar
+        }
+    });
+
+     // Función para cargar comentarios y alternar botones
+     function cargarComentarios(botonVer, postId) {
+        const botonOcultar = botonVer.nextElementSibling; // Botón "Ocultar comentarios"
+        const comentariosDiv = botonOcultar.nextElementSibling.nextElementSibling; // Div de comentarios
+
+        fetch(`https://jsonplaceholder.typicode.com/comments?postId=${postId}`)
+                .then(response => response.json())
+                .then(comentarios => {
+                    comentariosDiv.innerHTML = '<h4>Comentarios:</h4>';
+                    comentarios.forEach(comentario => {
+                        comentariosDiv.innerHTML += `<p><strong>${comentario.name}</strong>: ${comentario.body}</p>`;
+                    });
+                })
+
+        botonVer.style.display = 'none';
+        botonOcultar.style.display = 'inline-block';
+
+        
+    }
+
+    // Función para ocultar comentarios y alternar botones
+    function ocultarComentarios(botonOcultar) {
+        const botonVer = botonOcultar.previousElementSibling; // Botón "Ver comentarios"
+        const comentariosDiv = botonOcultar.nextElementSibling.nextElementSibling; // Div de comentarios
+
+        botonOcultar.style.display = 'none';
+        botonVer.style.display = 'inline-block';
+
+        comentariosDiv.innerHTML = ''; // Limpiar comentarios
+    }
+
+    function eliminarPost(botonEliminar, postId) {
+        const postContainer = botonEliminar.parentNode;
+
+        fetch(`https://jsonplaceholder.typicode.com/posts/${postId}`, {
+          method: 'DELETE'
+        })
+        .then(response => {
+          if (response.ok) {
+            postContainer.remove();
+          } else {
+            console.error('Error al eliminar el post de la API');
+          }
+        })
+        
+      }
+
+</script>
+</html>
